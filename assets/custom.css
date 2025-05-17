@@ -1,0 +1,48 @@
+body {
+    background-color: #fef6f0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+h2, h4 {
+    color: #3d3d3d;
+    font-weight: 600;
+    margin-top: 20px;
+}
+
+.dash-dropdown,
+.Select-control,
+.Select-placeholder,
+.Select-value {
+    background-color: #ffffff !important;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+}
+
+.dash-graph {
+    background-color: #ffffff !important;
+    padding: 10px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.dash-table-container .dash-spreadsheet-container {
+    background-color: #fff !important;
+}
+
+.navbar {
+    background-color: #8a2be2 !important;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    color: white !important;
+}
+
+.nav-link {
+    color: #ffffff !important;
+}
+
+.nav-link:hover {
+    color: #ffd700 !important;
+}
