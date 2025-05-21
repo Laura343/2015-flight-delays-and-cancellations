@@ -57,9 +57,13 @@ layout = dbc.Container([
 def cancelled_bar(_):
     cancelled = flights[flights['CANCELLED'] == 1]
     data = cancelled.groupby('AIRLINE_NAME').size().reset_index(name='count')
-    return px.bar(data.sort_values('count'), x='count', y='AIRLINE_NAME', orientation='h',
-                  title="Cancelled Flights per Airline",
-                  color='AIRLINE_NAME', color_discrete_sequence=px.colors.qualitative.Set3)
+    data = data.sort_values('count')
+    fig = px.bar(
+        data, x='count', y='AIRLINE_NAME', orientation='h',
+        title="Cancelled Flights per Airline"
+    )
+    fig.update_traces(marker_color='indianred')
+    return fig
 
 @dash.callback(Output('cancelled-vs-completed', 'figure'), Input('cancelled-vs-completed', 'id'))
 def cancelled_pie(_):
@@ -73,9 +77,13 @@ def cancelled_pie(_):
 def cancel_day_bar(_):
     df = flights.groupby('DAY_NAME').agg(cancelled=('CANCELLED', 'sum'), total=('CANCELLED', 'count')).reset_index()
     df['rate'] = 100 * df['cancelled'] / df['total']
-    return px.bar(df, x='DAY_NAME', y='rate', title='Cancellation Rate by Day',
-                  labels={'rate': '% Cancelled'},
-                  color='DAY_NAME', color_discrete_sequence=px.colors.qualitative.Bold)
+    fig = px.bar(
+        df, x='DAY_NAME', y='rate',
+        title='Cancellation Rate by Day',
+        labels={'rate': '% Cancelled'}
+    )
+    fig.update_traces(marker_color='teal')
+    return fig
 
 @dash.callback(Output('cancelled-heatmap', 'figure'), Input('cancelled-heatmap', 'id'))
 def cancel_heat(_):
@@ -104,51 +112,36 @@ def cancel_airport_bar(_):
 
 @dash.callback(Output('cancelled-map', 'figure'), Input('cancelled-map', 'id'))
 def cancel_map(_):
-    # Filter only cancelled flights with valid airport locations
+    # Filter cancelled flights with valid origin airport coordinates
     df = flights[flights['CANCELLED'] == 1]
-    df = df[
-        df['ORIGIN_AIRPORT'].isin(airport_coords.index) &
-        df['DESTINATION_AIRPORT'].isin(airport_coords.index)
-    ].sample(min(300, len(df)), random_state=42)
+    df = df[df['ORIGIN_AIRPORT'].isin(airport_coords.index)]
 
-    color_palette = px.colors.qualitative.Set2
-    fig = go.Figure()
+    # Count number of cancellations per origin airport
+    cancel_counts = df['ORIGIN_AIRPORT'].value_counts().reset_index()
+    cancel_counts.columns = ['Airport', 'Cancellations']
 
-    # Draw colored flight arcs with airport hover labels
-    for i, (_, row) in enumerate(df.iterrows()):
-        origin_code = row['ORIGIN_AIRPORT']
-        dest_code = row['DESTINATION_AIRPORT']
-        origin = airport_coords.loc[origin_code]
-        dest = airport_coords.loc[dest_code]
+    # Join with airport coordinates
+    cancel_coords = cancel_counts.merge(
+        airport_coords.reset_index(), left_on='Airport', right_on='IATA_CODE'
+    )
 
-        fig.add_trace(go.Scattergeo(
-            locationmode='USA-states',
-            lon=[origin['LONGITUDE'], dest['LONGITUDE']],
-            lat=[origin['LATITUDE'], dest['LATITUDE']],
-            mode='lines',
-            line=dict(width=2, color=color_palette[i % len(color_palette)]),
-            opacity=0.7,
-            text=f"{origin_code} → {dest_code}",
-            hoverinfo='text'
-        ))
-
-    # Add airport markers with codes
-    airports_used = pd.unique(df[['ORIGIN_AIRPORT', 'DESTINATION_AIRPORT']].values.ravel())
-    airport_points = airport_coords.loc[airports_used].copy()
-    airport_points['code'] = airport_points.index
-
-    fig.add_trace(go.Scattergeo(
-        lon=airport_points['LONGITUDE'],
-        lat=airport_points['LATITUDE'],
+    # Create bubble map
+    fig = go.Figure(go.Scattergeo(
+        lon=cancel_coords['LONGITUDE'],
+        lat=cancel_coords['LATITUDE'],
+        text=cancel_coords['Airport'] + ' - ' + cancel_coords['Cancellations'].astype(str) + ' cancelled',
         mode='markers',
-        marker=dict(size=5, color='black'),
-        text=airport_points['code'],
-        name='Airports'
+        marker=dict(
+            size=cancel_coords['Cancellations'] / cancel_coords['Cancellations'].max() * 40 + 5,  # scaled size
+            color='crimson',
+            opacity=0.7,
+            line=dict(width=0)
+        )
     ))
 
     fig.update_geos(scope='usa')
     fig.update_layout(
-        title='Cancelled Flights Map (Airports & Colored Arcs)',
+        title='Cancelled Flights by Airport (Marker Size = Number of Cancellations)',
         height=550,
         margin=dict(l=10, r=10, t=50, b=10),
         showlegend=False
@@ -191,4 +184,3 @@ def cancel_animated_bar(_):
                   title='Hourly Cancelled Flights by Airline',
                   color_discrete_sequence=px.colors.qualitative.Set3,
                   range_y=[0, grouped['count'].max() + 10])
-
