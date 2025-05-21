@@ -61,7 +61,7 @@ layout = dbc.Container([
     html.Br(), html.Hr(),
     html.H4("🏙️ Top Origin/Destination Airports"),
     dbc.Row([
-        dbc.Col(dcc.Graph(id='origin-bar'), md=6),
+        dbc.Col(dcc.Graph(id='origin-treemap'), md=6),
         dbc.Col(dcc.Graph(id='dest-treemap'), md=6)
     ]),
     dbc.Row([
@@ -88,13 +88,12 @@ def airline_share(airline):
             }
         )
     else:
-        return px.bar(
+        fig = px.bar(
             counts, x='Flights', y='Airline', orientation='h',
-            title='Airline Market Share',
-            color='Airline',
-            color_discrete_sequence=px.colors.qualitative.Set3
+            title='Airline Market Share'
         )
-
+        fig.update_traces(marker_color='steelblue')
+        return fig
 
 @dash.callback(Output('top-routes', 'figure'), Input('airline-selector', 'value'))
 def route_bar(airline):
@@ -169,9 +168,19 @@ def busiest_day(airline):
     day_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     day_counts = df['DAY_NAME'].value_counts().reindex(day_order).reset_index()
     day_counts.columns = ['Day', 'Flights']
-    return px.bar(day_counts, x='Day', y='Flights', title='Flights by Day of Week',
-                  color='Flights',
-                  color_continuous_scale=px.colors.sequential.Viridis)
+    fig = px.bar(
+        day_counts, x='Day', y='Flights',
+        color='Flights',
+        color_continuous_scale=px.colors.sequential.Viridis_r,
+        title='Flights by Day of Week',
+        hover_data={'Flights': True}
+    )
+    fig.update_layout(
+        coloraxis_colorbar=dict(title='Flights'),
+        coloraxis_showscale=True
+    )
+    return fig
+
 
 @dash.callback(Output('month-trend', 'figure'), Input('airline-selector', 'value'))
 def monthly_trend(airline):
@@ -183,14 +192,15 @@ def monthly_trend(airline):
                    markers=True, line_shape='spline',
                    color_discrete_sequence=['dodgerblue'])
 
-@dash.callback(Output('origin-bar', 'figure'), Input('airline-selector', 'value'))
-def origin_bar(airline):
+@dash.callback(Output('origin-treemap', 'figure'), Input('airline-selector', 'value'))
+def origin_treemap(airline):
     df = flights if airline is None else flights[flights['AIRLINE'] == airline]
-    top = df['ORIGIN_CITY'].value_counts().head(10).reset_index()
+    top = df['ORIGIN_CITY'].value_counts().head(20).reset_index()
     top.columns = ['City', 'Count']
-    return px.bar(top, x='City', y='Count', title='Top Origin Cities',
-                  color='City',
-                  color_discrete_sequence=px.colors.qualitative.Prism)
+    return px.treemap(top, path=['City'], values='Count',
+                      title='Top Origin Cities (Treemap)',
+                      color='Count',
+                      color_continuous_scale='Bluered')
 
 @dash.callback(Output('dest-treemap', 'figure'), Input('airline-selector', 'value'))
 def dest_treemap(airline):
@@ -224,4 +234,3 @@ def airport_bar(airline):
         color='Label',
         color_discrete_sequence=px.colors.qualitative.Bold
     )
-
