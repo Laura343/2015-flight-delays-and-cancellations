@@ -72,7 +72,7 @@ def delay_trend_animation(_):
 def delay_violin(hour):
     df = flights[(flights['SCHED_HOUR'] == hour) & (flights['DEPARTURE_DELAY'].between(-10, 180))]
     return px.violin(df.sample(min(1000, len(df))), y='DEPARTURE_DELAY', x='AIRLINE_NAME', box=True,
-                     title='Delay Distribution by Airline',
+                     title='Delay Distribution by Airline (Delays -10 to 180 mins)',
                      color_discrete_sequence=px.colors.qualitative.Prism)
 
 @dash.callback(Output('delay-heatmap', 'figure'), Input('hour-slider', 'value'))
@@ -86,24 +86,35 @@ def delay_heatmap(_):
 
 @dash.callback(Output('distance-delay-bar', 'figure'), Input('hour-slider', 'value'))
 def delay_by_distance_range(hour):
-    df = flights[(flights['CANCELLED'] == 0) & (flights['SCHED_HOUR'] == hour) & (flights['DISTANCE'] < 3000)].copy()
+    df = flights[
+        (flights['CANCELLED'] == 0) &
+        (flights['SCHED_HOUR'] == hour) &
+        (flights['DISTANCE'] < 3000)
+    ].copy()
     bins = [0, 500, 1000, 1500, 2000, 2500, 3000]
     labels = ['<500', '500-999', '1000-1499', '1500-1999', '2000-2499', '2500+']
     df['DISTANCE_BIN'] = pd.cut(df['DISTANCE'], bins=bins, labels=labels)
     avg = df.groupby('DISTANCE_BIN', observed=True)['DEPARTURE_DELAY'].mean().reset_index()
-    return px.bar(avg, x='DISTANCE_BIN', y='DEPARTURE_DELAY',
-                  title='Avg Delay by Distance Range',
-                  color='DISTANCE_BIN',
-                  color_discrete_sequence=px.colors.qualitative.Set3)
+    fig = px.bar(
+        avg, x='DISTANCE_BIN', y='DEPARTURE_DELAY',
+        title='Average Delay by Distance Range'
+    )
+    fig.update_traces(marker_color='steelblue')
+    return fig
+
 
 @dash.callback(Output('avg-delay-bar', 'figure'), Input('hour-slider', 'value'))
 def avg_delay(_):
     df = flights[flights['CANCELLED'] == 0]
     data = df.groupby('AIRLINE_NAME')['DEPARTURE_DELAY'].mean().reset_index()
-    return px.bar(data, x='AIRLINE_NAME', y='DEPARTURE_DELAY',
-                  title='Average Delay per Airline',
-                  labels={'DEPARTURE_DELAY': 'Avg Delay (min)'},
-                  color_discrete_sequence=px.colors.qualitative.Bold)
+    data = data.sort_values('DEPARTURE_DELAY', ascending=False)
+    fig = px.bar(
+        data, x='AIRLINE_NAME', y='DEPARTURE_DELAY',
+        title='Average Delay per Airline',
+        labels={'DEPARTURE_DELAY': 'Avg Delay (min)'},
+        color_discrete_sequence=px.colors.qualitative.Bold
+    )
+    return fig
 
 @dash.callback(Output('delay-cause-bar', 'figure'), Input('hour-slider', 'value'))
 def delay_cause_bar(_):
